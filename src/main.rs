@@ -110,6 +110,15 @@ mod brainfuck {
             ]).unwrap();
         }
 
+        fn emit_read<T: Write>(mem: &mut T) {
+            mem.write(&[
+                0x48, 0x31, 0xc0, // xor rax, rax
+                0x48, 0x31, 0xff, // xor rdi, rdi
+                0xba, 0x01, 0x00, 0x00, 0x00, // mov edx, 1
+                0x0f, 0x05 // syscall
+            ]).unwrap();
+        }
+
         fn emit_ret<T: Write>(mem: &mut T) {
             mem.write(&[
                 0xc3 // ret
@@ -126,7 +135,7 @@ mod brainfuck {
                 IncVal => emit_inc_val(&mut mem),
                 DecVal => emit_dec_val(&mut mem),
                 PrintCell => emit_print(&mut mem),
-                ReadChar => {},  // TODO: implement
+                ReadChar => emit_read(&mut mem),
                 JmpFwd(n) => {
                     fwd_jumps.push((mem.position() as usize, n));
                     emit_jmp_fwd(&mut mem, 0x41414141); /* insert dummy */
@@ -178,7 +187,7 @@ mod brainfuck {
                     '+' => IncVal,
                     '-' => DecVal,
                     '.' => PrintCell,
-                    ',' => return Err(InvalidInst),  // TODO: implement
+                    ',' => ReadChar,
                     '[' => {
                         stack.push(i);
                         JmpFwd(0)
