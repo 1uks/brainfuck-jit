@@ -103,7 +103,7 @@ mod brainfuck {
 
         fn emit_print<T: Write>(mem: &mut T) {
             mem.write(&[
-                0xb8, 0x01, 0x00, 0x00, 0x00, // mov eax, 1
+                0xb8, 0x01, 0x00, 0x00, 0x00, // mov rax, 1
                 0xbf, 0x01, 0x00, 0x00, 0x00, // mov rdi, 1
                 0xba, 0x01, 0x00, 0x00, 0x00, // mov edx, 1
                 0x0f, 0x05 // syscall
@@ -239,7 +239,7 @@ mod brainfuck {
             let func: fn(*const u8, *const u8) = unsafe {
                 mem::transmute(mapping.data())
             };
-            func(ptr::null(), tape.as_ptr());
+            func(ptr::null(), tape.as_ptr());  // jitted code expects tape in rsi
         }
 
         pub fn dump(&self) {
