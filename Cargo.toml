@@ -1,0 +1,7 @@
+[package]
+name = "brainfuck"
+version = "0.1.0"
+authors = ["luks <luks@aachen.ccc.de>"]
+
+[dependencies]
+mmap = "*"
