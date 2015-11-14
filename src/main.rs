@@ -266,24 +266,32 @@ mod brainfuck {
             }
         }
 
-    }
+        pub fn dump_jit(&self) {
+            io::stdout().write(&self.jit_code);
+        }
 
+    }
 }
 
 
 fn main() {
+    use std::{env, fs, path};
+    use std::path::Path;
+    use std::fs::File;
+    use std::io::Read;
     use brainfuck::*;
 
-    {
-        let mut bf = Brainfuck::new(include_str!("mandel.b")).unwrap();
-        bf.dump();
-        bf.run();
+    let args: Vec<_> = env::args().collect();
+
+    if args.len() != 2 {
+        let progname = Path::new(&args[0]).file_name().unwrap().to_string_lossy();
+        println!("usage: {} <filename>", progname);
+        return;
     }
 
-    {
-        let mut bf = Brainfuck::new("++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.").unwrap();
-        bf.dump();
-        bf.run();
-    }
+    let mut code = String::new();
 
+    File::open(&args[1]).unwrap().read_to_string(&mut code);
+
+    Brainfuck::new(&code).unwrap().run();
 }
