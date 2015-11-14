@@ -235,8 +235,8 @@ mod brainfuck {
         pub fn run(&mut self) {
             let tape = default_vec(self.tape_size, 0u8);
             let rwx = &[
-                MapOption::MapWritable,
                 MapOption::MapReadable,
+                MapOption::MapWritable,
                 MapOption::MapExecutable
             ];
             let mapping = MemoryMap::new(self.jit_code.len(), rwx).unwrap();
