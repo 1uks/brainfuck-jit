@@ -180,6 +180,13 @@ mod brainfuck {
             let mut insts = Vec::new();
             let mut stack = Vec::new();
 
+            let program: String = program.chars().filter(
+                |&c| match c {
+                    '>' | '<' | '+' | '-' | '.' | ',' | '[' | ']' => true,
+                    _ => false,
+                }
+            ).collect();
+
             for (i, c) in program.chars().enumerate() {
                 let inst = match c {
                     '>' => IncPtr,
