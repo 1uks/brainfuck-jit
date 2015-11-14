@@ -138,7 +138,7 @@ mod brainfuck {
                 ReadChar => emit_read(&mut mem),
                 JmpFwd(n) => {
                     fwd_jumps.push((mem.position() as usize, n));
-                    emit_jmp_fwd(&mut mem, 0x41414141); /* insert dummy */
+                    emit_jmp_fwd(&mut mem, 0x41414141); // insert dummy
                     addr_mapping.insert(i, mem.position() as usize);
                 },
                 JmpBack(n) => {
@@ -197,7 +197,7 @@ mod brainfuck {
                     ',' => ReadChar,
                     '[' => {
                         stack.push(i);
-                        JmpFwd(0)
+                        JmpFwd(0) // insert dummy
                     },
                     ']' => {
                         let n = match stack.pop() {
