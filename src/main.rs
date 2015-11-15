@@ -234,10 +234,7 @@ mod brainfuck {
                 }
             ).collect();
 
-            let mut inst_count = 0;
-
             for (length, c) in program.chars().run_length() {
-                let before = insts.len();
 
                 match c {
                     '>' => insts.push(IncPtr(length)),
@@ -256,8 +253,8 @@ mod brainfuck {
                     }
                     '[' => {
                         for i in 0..length {
+                            stack.push(insts.len());
                             insts.push(JmpFwd(0)); // insert dummy;
-                            stack.push(inst_count + i);
                         }
                     },
                     ']' => {
@@ -266,14 +263,13 @@ mod brainfuck {
                                 Some(n) => n,
                                 None => return Err(UnbalancedBrackets),
                             };
-                            insts[n] = JmpFwd(inst_count + i);
+                            insts[n] = JmpFwd(insts.len());
                             insts.push(JmpBack(n));
                         }
                     },
                     _ => unreachable!(),
                 };
 
-                inst_count += insts.len() - before;
             }
 
             if !stack.is_empty() {
