@@ -44,7 +44,7 @@ mod brainfuck {
         repeat(default).take(size).collect()
     }
 
-    fn jit(insts: &[Inst]) -> Vec<u8> {
+    fn compile(insts: &[Inst]) -> Vec<u8> {
         let mut mem = Cursor::new(Vec::new());
 
         fn emit_inc<T: Write>(mem: &mut T, amount: usize) {
@@ -277,7 +277,7 @@ mod brainfuck {
             }
 
             Ok(Brainfuck {
-                jit_code: jit(&insts),
+                jit_code: compile(&insts),
                 insts: insts,
                 tape_size: 30_000,
             })
