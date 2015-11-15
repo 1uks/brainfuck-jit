@@ -1,18 +1,21 @@
 extern crate mmap;
 
+mod runlength;
+
 mod brainfuck {
-    use std::{mem, ptr};
+    use std::{mem, ptr, io};
     use std::io::{Read, Write, Cursor, Seek, SeekFrom};
     use std::collections::HashMap;
     use self::Inst::*;
     use mmap::*;
+    use runlength::RunLengthIterator;
 
     #[derive(Debug)]
     pub enum Inst {
-        IncPtr,
-        DecPtr,
-        IncVal,
-        DecVal,
+        IncPtr(usize),
+        DecPtr(usize),
+        IncVal(usize),
+        DecVal(usize),
         PrintCell,
         ReadChar,
         JmpFwd(usize),
@@ -37,34 +40,79 @@ mod brainfuck {
 
     fn default_vec<T: Clone>(size: usize, default: T) -> Vec<T> {
         use std::iter::repeat;
+
         repeat(default).take(size).collect()
     }
 
     fn jit(insts: &[Inst]) -> Vec<u8> {
         let mut mem = Cursor::new(Vec::new());
 
-        fn emit_inc<T: Write>(mem: &mut T) {
-            mem.write(&[
-                0x48, 0xff, 0xc6, // inc rsi
-            ]).unwrap();
+        fn emit_inc<T: Write>(mem: &mut T, amount: usize) {
+            if amount == 1 {
+                mem.write(&[
+                    0x48, 0xff, 0xc6, // inc rsi
+                ]).unwrap();
+            } else {
+                let raw: *const u8 = unsafe { mem::transmute(&(amount as u32)) };
+                unsafe {
+                    mem.write(&[
+                        0x48, 0x81, 0xc6,
+                        *raw.offset(0),
+                        *raw.offset(1),
+                        *raw.offset(2),
+                        *raw.offset(3),
+                    ]).unwrap();
+                }
+            }
         };
 
-        fn emit_dec<T: Write>(mem: &mut T) {
-            mem.write(&[
-                0x48, 0xff, 0xce, // dec rsi
-            ]).unwrap();
+        fn emit_dec<T: Write>(mem: &mut T, amount: usize) {
+            if amount == 1 {
+                mem.write(&[
+                    0x48, 0xff, 0xce, // dec rsi
+                ]).unwrap();
+            } else {
+                let raw: *const u8 = unsafe { mem::transmute(&(amount as u32)) };
+                unsafe {
+                    mem.write(&[
+                        0x48, 0x81, 0xee,
+                        *raw.offset(0),
+                        *raw.offset(1),
+                        *raw.offset(2),
+                        *raw.offset(3),
+                    ]).unwrap();
+                }
+            }
         };
 
-        fn emit_inc_val<T: Write>(mem: &mut T) {
-            mem.write(&[
-                0xfe, 0x06, // inc byte [rsi]
-            ]).unwrap();
+        fn emit_inc_val<T: Write>(mem: &mut T, amount: usize) {
+            if amount == 1 {
+                mem.write(&[
+                    0xfe, 0x06, // inc byte [rsi]
+                ]).unwrap();
+            } else {
+                let raw: *const u8 = unsafe { mem::transmute(&((amount & 0xff) as u8)) };
+                unsafe {
+                    mem.write(&[
+                        0x80, 0x06, *raw.offset(0)
+                    ]);
+                }
+            }
         }
 
-        fn emit_dec_val<T: Write>(mem: &mut T) {
-            mem.write(&[
-                0xfe, 0x0e, // dec byte [rsi]
-            ]).unwrap();
+        fn emit_dec_val<T: Write>(mem: &mut T, amount: usize) {
+            if amount == 1 {
+                mem.write(&[
+                    0xfe, 0x0e, // dec byte [rsi]
+                ]).unwrap();
+            } else {
+                let raw: *const u8 = unsafe { mem::transmute(&((amount & 0xff) as u8)) };
+                unsafe {
+                    mem.write(&[
+                        0x80, 0x2e, *raw.offset(0)
+                    ]);
+                }
+            }
         }
 
         fn emit_jmp_fwd<T: Write>(mem: &mut T, offset: usize) {
@@ -130,10 +178,10 @@ mod brainfuck {
 
         for (i, inst) in insts.iter().enumerate() {
             match *inst {
-                IncPtr => emit_inc(&mut mem),
-                DecPtr => emit_dec(&mut mem),
-                IncVal => emit_inc_val(&mut mem),
-                DecVal => emit_dec_val(&mut mem),
+                IncPtr(a) => emit_inc(&mut mem, a),
+                DecPtr(a) => emit_dec(&mut mem, a),
+                IncVal(a) => emit_inc_val(&mut mem, a),
+                DecVal(a) => emit_dec_val(&mut mem, a),
                 PrintCell => emit_print(&mut mem),
                 ReadChar => emit_read(&mut mem),
                 JmpFwd(n) => {
@@ -170,7 +218,6 @@ mod brainfuck {
     #[derive(Debug)]
     pub enum CompileError {
         UnbalancedBrackets,
-        InvalidInst,
     }
 
     impl Brainfuck {
@@ -187,30 +234,46 @@ mod brainfuck {
                 }
             ).collect();
 
-            for (i, c) in program.chars().enumerate() {
-                let inst = match c {
-                    '>' => IncPtr,
-                    '<' => DecPtr,
-                    '+' => IncVal,
-                    '-' => DecVal,
-                    '.' => PrintCell,
-                    ',' => ReadChar,
+            let mut inst_count = 0;
+
+            for (length, c) in program.chars().run_length() {
+                let before = insts.len();
+
+                match c {
+                    '>' => insts.push(IncPtr(length)),
+                    '<' => insts.push(DecPtr(length)),
+                    '+' => insts.push(IncVal(length)),
+                    '-' => insts.push(DecVal(length)),
+                    '.' => {
+                        for _ in 0..length {
+                            insts.push(PrintCell);
+                        }
+                    }
+                    ',' => {
+                        for _ in 0..length {
+                            insts.push(ReadChar);
+                        }
+                    }
                     '[' => {
-                        stack.push(i);
-                        JmpFwd(0) // insert dummy
+                        for i in 0..length {
+                            insts.push(JmpFwd(0)); // insert dummy;
+                            stack.push(inst_count + i);
+                        }
                     },
                     ']' => {
-                        let n = match stack.pop() {
-                            Some(n) => n,
-                            None => return Err(UnbalancedBrackets),
-                        };
-                        insts[n] = JmpFwd(i);
-                        JmpBack(n)
+                        for i in 0..length {
+                            let n = match stack.pop() {
+                                Some(n) => n,
+                                None => return Err(UnbalancedBrackets),
+                            };
+                            insts[n] = JmpFwd(inst_count + i);
+                            insts.push(JmpBack(n));
+                        }
                     },
-                    _ => return Err(InvalidInst)
+                    _ => unreachable!(),
                 };
 
-                insts.push(inst);
+                inst_count += insts.len() - before;
             }
 
             if !stack.is_empty() {
