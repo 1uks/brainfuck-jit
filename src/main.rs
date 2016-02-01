@@ -335,6 +335,7 @@ mod brainfuck {
 }
 
 
+#[cfg(target_arch="x86_64")]
 fn main() {
     use std::env;
     use std::path::Path;
