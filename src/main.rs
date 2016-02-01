@@ -1,4 +1,5 @@
 extern crate mmap;
+extern crate clap;
 
 mod runlength;
 
@@ -337,23 +338,19 @@ mod brainfuck {
 
 #[cfg(target_arch="x86_64")]
 fn main() {
-    use std::env;
-    use std::path::Path;
     use std::fs::File;
     use std::io::Read;
     use brainfuck::*;
+    use clap::{App, Arg};
 
-    let args: Vec<_> = env::args().collect();
-
-    if args.len() != 2 {
-        let progname = Path::new(&args[0]).file_name().unwrap().to_string_lossy();
-        println!("usage: {} <filename>", progname);
-        return;
-    }
+    let matches = App::new("brainfuck-jit")
+        .arg(Arg::with_name("filename").required(true))
+        .get_matches();
 
     let mut code = String::new();
 
-    File::open(&args[1]).unwrap().read_to_string(&mut code).unwrap();
+    File::open(matches.value_of("filename").unwrap()).unwrap()
+        .read_to_string(&mut code).unwrap();
 
     Brainfuck::new(&code).unwrap().run();
 }
