@@ -2,6 +2,8 @@ extern crate mmap;
 
 mod runlength;
 
+#[allow(dead_code)]
+#[allow(unused_must_use)]
 mod brainfuck {
     use std::{mem, ptr, io};
     use std::io::{Read, Write, Cursor, Seek, SeekFrom};
@@ -51,7 +53,7 @@ mod brainfuck {
             if amount == 1 {
                 mem.write(&[
                     0x48, 0xff, 0xc6, // inc rsi
-                ]).unwrap();
+                ]);
             } else {
                 let raw: *const u8 = unsafe { mem::transmute(&(amount as u32)) };
                 unsafe {
@@ -61,7 +63,7 @@ mod brainfuck {
                         *raw.offset(1),
                         *raw.offset(2),
                         *raw.offset(3),
-                    ]).unwrap();
+                    ]);
                 }
             }
         };
@@ -70,7 +72,7 @@ mod brainfuck {
             if amount == 1 {
                 mem.write(&[
                     0x48, 0xff, 0xce, // dec rsi
-                ]).unwrap();
+                ]);
             } else {
                 let raw: *const u8 = unsafe { mem::transmute(&(amount as u32)) };
                 unsafe {
@@ -80,7 +82,7 @@ mod brainfuck {
                         *raw.offset(1),
                         *raw.offset(2),
                         *raw.offset(3),
-                    ]).unwrap();
+                    ]);
                 }
             }
         };
@@ -89,7 +91,7 @@ mod brainfuck {
             if amount == 1 {
                 mem.write(&[
                     0xfe, 0x06, // inc byte [rsi]
-                ]).unwrap();
+                ]);
             } else {
                 let raw: *const u8 = unsafe { mem::transmute(&((amount & 0xff) as u8)) };
                 unsafe {
@@ -104,7 +106,7 @@ mod brainfuck {
             if amount == 1 {
                 mem.write(&[
                     0xfe, 0x0e, // dec byte [rsi]
-                ]).unwrap();
+                ]);
             } else {
                 let raw: *const u8 = unsafe { mem::transmute(&((amount & 0xff) as u8)) };
                 unsafe {
@@ -119,7 +121,7 @@ mod brainfuck {
             mem.write(&[
                 0x80, 0x3e, 0x00, // cmp byte [rsi], 0
                 0x0f, 0x84 // je ...
-            ]).unwrap();
+            ]);
             let offset = offset as i32 - 9;
             let raw: *const u8 = unsafe { mem::transmute(&offset) };
             unsafe {
@@ -128,7 +130,7 @@ mod brainfuck {
                     *raw.offset(1),
                     *raw.offset(2),
                     *raw.offset(3),
-                ]).unwrap();
+                ]);
             }
         }
 
@@ -136,7 +138,7 @@ mod brainfuck {
             mem.write(&[
                 0x80, 0x3e, 0x00, // cmp byte [rsi], 0
                 0x0f, 0x85 // jne ...
-            ]).unwrap();
+            ]);
             let offset = (offset as i32) - 9;
             let raw: *const u8 = unsafe { mem::transmute(&offset) };
             unsafe {
@@ -145,7 +147,7 @@ mod brainfuck {
                     *raw.offset(1),
                     *raw.offset(2),
                     *raw.offset(3),
-                ]).unwrap();
+                ]);
             }
         }
 
@@ -155,7 +157,7 @@ mod brainfuck {
                 0xbf, 0x01, 0x00, 0x00, 0x00, // mov rdi, 1
                 0xba, 0x01, 0x00, 0x00, 0x00, // mov edx, 1
                 0x0f, 0x05 // syscall
-            ]).unwrap();
+            ]);
         }
 
         fn emit_read<T: Write>(mem: &mut T) {
@@ -164,13 +166,13 @@ mod brainfuck {
                 0x48, 0x31, 0xff, // xor rdi, rdi
                 0xba, 0x01, 0x00, 0x00, 0x00, // mov edx, 1
                 0x0f, 0x05 // syscall
-            ]).unwrap();
+            ]);
         }
 
         fn emit_ret<T: Write>(mem: &mut T) {
             mem.write(&[
                 0xc3 // ret
-            ]).unwrap();
+            ]);
         }
 
         let mut addr_mapping: HashMap<usize, usize> = HashMap::new();
@@ -252,13 +254,13 @@ mod brainfuck {
                         }
                     }
                     '[' => {
-                        for i in 0..length {
+                        for _ in 0..length {
                             stack.push(insts.len());
                             insts.push(JmpFwd(0)); // insert dummy;
                         }
                     },
                     ']' => {
-                        for i in 0..length {
+                        for _ in 0..length {
                             let n = match stack.pop() {
                                 Some(n) => n,
                                 None => return Err(UnbalancedBrackets),
@@ -334,7 +336,7 @@ mod brainfuck {
 
 
 fn main() {
-    use std::{env, fs, path};
+    use std::env;
     use std::path::Path;
     use std::fs::File;
     use std::io::Read;
@@ -350,7 +352,7 @@ fn main() {
 
     let mut code = String::new();
 
-    File::open(&args[1]).unwrap().read_to_string(&mut code);
+    File::open(&args[1]).unwrap().read_to_string(&mut code).unwrap();
 
     Brainfuck::new(&code).unwrap().run();
 }
