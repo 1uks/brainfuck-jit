@@ -5,3 +5,4 @@ authors = ["Lukas Kupczyk <lukas.kupczyk@gmail.com>"]
 
 [dependencies]
 mmap = "0.1.1"
+clap = "2"
